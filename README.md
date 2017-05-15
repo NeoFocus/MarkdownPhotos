@@ -247,7 +247,7 @@ Presenter 中主要是实现 View 和 Model 的交互，并且将两者隔离开
 
 还可以看到上面实现了start 方法并调用了 loadMyInfo 和 loadVipInfo 方法，这两个方法其实是用来加载 View 初始化完成后所需要的数据的，在加载完成后讲数据交给 View 来使用。
 
-**那 Activity 哪去了？ **
+**那 Activity 哪去了？**
 
 最后要讲就是 VipActivity ，我们知道 Activity 和 Fragment 都可以做 View 层，那为什么不用 Activity 做 View 层呢，主要是因为 Activity 是一个过于万能的类，而且操作必须切只能在 Activity 内来完成，如果用它来做 View 层，那么 View 层就不可避免的会出现许多和 View 无关的代码，最后和我们设计的初衷背离。
 
@@ -277,7 +277,7 @@ public class VipActivity extends AbsToolbarActivity {
 
         new VipPresenter(vipFragment);
     }
-   // ...... 其他 Activity 代码
+    // ...... 其他 Activity 代码
 }
 ```
 
