@@ -53,7 +53,7 @@ setPresenter 设置 View 对 Presenter 的引用。start 是 View 显式通知 P
 
 **MVP 中的对应关系：**
 
-Model：
+Model：VipModel
 
 View：VipFragment
 
@@ -80,6 +80,98 @@ interface VipContract {
 ```
 
 这个类的主要内容是根据当前的模块来派生出适合于当前模块的 View 和 Presenter ，在这里将 View 和与之对应的 Presenter 绑定在一起，而且集中的显示了 View 和 Presenter 的功能。接口中的方法是根据当前模块中具体的 View 和 Presenter 来设计的。实现的时候 View 和 Presenter 直接实现这里面的各自的接口就可以了，好处是有什么方法都会在这里看到，清晰简洁一目了然。
+
+**具体的 Model 实现**
+
+Model 的实现与具体业务相关，这里主要是发起网络请求，并将请求结果回调给 Presenter 由 Presenter 来对数据做相应的处理，没有什么好说的，写法也很自由，这里并没有采用 Google Demo 内的写法，因为和我们业务不太相符。
+
+```java
+class VipModel {
+    private static final ExecutorService sExecutor = Executors.newFixedThreadPool(2);
+    private VipPriceInfo mPriceInfo;
+    private VipMyInfo mMyInfo;
+    private VipOrderInfo mOrderInfo;
+    private VipModelListener mModel;
+
+    void setListener(VipModelListener model) {
+        mModel = model;
+    }
+
+    void doLoadMyInfo() {
+        AsyncTask<Void, Void, ErrorHandler> loadMyTask
+                = new AsyncTask<Void, Void, ErrorHandler>() {
+            @Override
+            protected ErrorHandler doInBackground(Void p) {
+                ErrorHandler error = new ErrorHandler();
+                mMyInfo = Parser.parseVipMyInfo(error);
+                return error;
+            }
+
+            @Override
+            protected void onPostExecute(ErrorHandler results) {
+                super.onPostExecute(results);
+                if (!results.success()) {
+                    return;
+                }
+                mModel.onMyInfoLoaded(mMyInfo);
+            }
+        };
+        loadMyTask.execute(sExecutor, null);
+    }
+
+    void doLoadVipInfo() {
+        AsyncTask<Void, Void, ErrorHandler> loadVipTask
+                = new AsyncTask<Void, Void, ErrorHandler>() {
+            @Override
+            protected ErrorHandler doInBackground(Void p) {
+                ErrorHandler error = new ErrorHandler();
+                mPriceInfo = Parser.parseVipPriceInfo(error);
+                return error;
+            }
+
+            @Override
+            protected void onPostExecute(ErrorHandler results) {
+                super.onPostExecute(results);
+                if (!results.success()) {
+                    return;
+                }
+                mModel.onVipInfoLoaded(mPriceInfo);
+            }
+        };
+        loadVipTask.execute(sExecutor, null);
+    }
+
+    void doSubmitOrder(String vipId) {
+        AsyncTask<Void, Void, ErrorHandler> submitTask
+                = new AsyncTask<Void, Void, ErrorHandler>() {
+            @Override
+            protected ErrorHandler doInBackground(Void p) {
+                ErrorHandler error = new ErrorHandler();
+                info = Parser.parseVipOrderInfo(error, vipId);
+                return error;
+            }
+
+            @Override
+            protected void onPostExecute(ErrorHandler results) {
+                super.onPostExecute(results);
+                if (!results.success()) {
+                    return;
+                }
+                mModel.onOrderSubmitted(info);
+            }
+        };
+        submitTask.execute(sExecutor, null);
+    }
+
+    interface VipModelListener {
+        void onMyInfoLoaded(VipMyInfo info);
+
+        void onVipInfoLoaded(VipPriceInfo info);
+
+        void onOrderSubmitted(PaymentInfo info);
+    }
+}
+```
 
 **具体的 View 和 Presenter 的实现：**
 
@@ -147,105 +239,54 @@ public class VipFragment extends AbsBaseFragment implements VipContract.View {
 接下来看一下Presenter层的实现示例：
 
 ```java
-class VipPresenter implements VipContract.Presenter {
+class VipPresenter implements VipContract.Presenter, VipModel.VipModelListener {
     private VipContract.View mVipView;
-    private static final ExecutorService sExecutor = Executors.newFixedThreadPool(2);
-    private VipPriceInfo mPriceInfo;
-    private VipOrderInfo mOrderInfo;
-    private VipMyInfo mMyInfo;
+    private VipModel mVipModel;
 
-    VipPresenter(VipContract.View view) {
+    VipPresenter(VipContract.View view, VipModel model) {
         mVipView = view;
+        mVipModel = model;
         mVipView.setPresenter(this);
+        mVipModel.setListener(this);
     }
 
     @Override
     public void start() {
-        loadMyInfo();
-        loadVipInfo();
-    }
-
-    private void loadMyInfo() {
-        AsyncTask<Void, Void, ErrorHandler> loadMyTask
-                = new AsyncTask<Void, Void, ErrorHandler>() {
-            @Override
-            protected ErrorHandler doInBackground(Void p) {
-                ErrorHandler error = new ErrorHandler();
-                mMyInfo = Parser.parseVipMyInfo(error);
-                return error;
-            }
-
-            @Override
-            protected void onPostExecute(ErrorHandler results) {
-                super.onPostExecute(results);
-                if (!results.success()) {
-                    return;
-                }
-                if (mVipView.isActive()) {
-                    mVipView.showMyVipInfo(mMyInfo);
-                }
-            }
-        };
-        loadMyTask.execute(sExecutor, null);
-    }
-
-    private void loadVipInfo() {
-        AsyncTask<Void, Void, ErrorHandler> loadVipTask
-                = new AsyncTask<Void, Void, ErrorHandler>() {
-            @Override
-            protected ErrorHandler doInBackground(Void p) {
-                ErrorHandler error = new ErrorHandler();
-                mPriceInfo = Parser.parseVipPriceInfo(error);
-                return error;
-            }
-
-            @Override
-            protected void onPostExecute(ErrorHandler results) {
-                super.onPostExecute(results);
-                if (!results.success()) {
-                    return;
-                }
-                if (mVipView.isActive()) {
-                    mVipView.showVipContent(mPriceInfo);
-                }
-            }
-        };
-        loadVipTask.execute(sExecutor, null);
+        mVipModel.doLoadMyInfo();
+        mVipModel.doLoadVipInfo();
     }
 
     @Override
     public void submitOrder(String vipId) {
-        AsyncTask<Void, Void, ErrorHandler> submitTask
-                = new AsyncTask<Void, Void, ErrorHandler>() {
-            @Override
-            protected ErrorHandler doInBackground(Void p) {
-                ErrorHandler error = new ErrorHandler();
-                mOrderInfo = Parser.parseVipOrderInfo(error, vipId);
-                return error;
-            }
+        mVipModel.doSubmitOrder(vipId);
+    }
 
-            @Override
-            protected void onPostExecute(ErrorHandler results) {
-                super.onPostExecute(results);
-                if (!results.success()) {
-                    return;
-                }
-                if (mVipView.isActive()) {
-                    PaymentInfo info = new PaymentInfo();
-                    info.mPaymentNumber = mOrderInfo.getData().getPaySn();
-                    info.mTotalPrice = Float.valueOf(mOrderInfo.getData().getPrice());
-                    mVipView.turnOrderPage(info);
-                }
-            }
-        };
-        submitTask.execute(sExecutor, null);
+    @Override
+    public void onMyInfoLoaded(VipMyInfo info) {
+        if (mVipView.isActive()) {
+            mVipView.showMyVipInfo(info);
+        }
+    }
+
+    @Override
+    public void onVipInfoLoaded(VipPriceInfo info) {
+        if (mVipView.isActive()) {
+            mVipView.showVipContent(info);
+        }
+    }
+
+    @Override
+    public void onOrderSubmitted(PaymentInfo info) {
+        if (mVipView.isActive()) {
+            mVipView.turnOrderPage(info);
+        }
     }
 }
 ```
 
-Presenter 中主要是实现 View 和 Model 的交互，并且将两者隔离开来，实现了接口隔离。VipPresenter 实现 VipContract.Presenter 契约类接口，在构造里面接受 View 的对象，并且调用了View 的 setPresenter 方法，把自己的引用传了进去，这就是上面基类定义的方法，这样 Presenter 就有了 View 的引用  View 也有了Presenter 的引用。
+Presenter 中主要是实现 View 和 Model 的交互，并且将两者隔离开来，实现了接口隔离。VipPresenter 实现 VipContract.Presenter 契约类接口，在构造里面接受 View 的对象，并且调用了View 的 setPresenter 方法，把自己的引用传了进去，这就是上面基类定义的方法，这样 Presenter 就有了 View 的引用  View 也有了Presenter 的引用。而实现 VipModel.VipModelListener 接口是为了响应 Model 网络请求完成后的回调。
 
-还可以看到上面实现了start 方法并调用了 loadMyInfo 和 loadVipInfo 方法，这两个方法其实是用来加载 View 初始化完成后所需要的数据的，在加载完成后讲数据交给 View 来使用。
+还可以看到上面实现了start 方法并调用了 doLoadMyInfo 和 doLoadVipInfo 方法，这两个方法其实是用来加载 View 初始化完成后所需要的数据的，在加载完成后讲数据交给 View 来使用。
 
 **那 Activity 哪去了？**
 
@@ -267,6 +308,8 @@ public class VipActivity extends AbsToolbarActivity {
     }
 
     private void initMVP() {
+        VipModel model = new VipModel();
+
         FragmentManager manager = getSupportFragmentManager();
         VipFragment vipFragment = (VipFragment) manager.findFragmentById(R.id.vip_content);
 
@@ -275,13 +318,13 @@ public class VipActivity extends AbsToolbarActivity {
             ActivityUtils.addFragmentToActivity(manager, vipFragment, R.id.vip_content);
         }
 
-        new VipPresenter(vipFragment);
+        new VipPresenter(vipFragment, model);
     }
     // ...... 其他 Activity 代码
 }
 ```
 
-可以看到在 MVP 中，VipActicity 只负责创建了 VipFragment（View）和 VipPresenter（Presenter），并将他们装配在了一起，这就是 Activity 的作用。
+可以看到在 MVP 中，VipActicity 只负责创建了 VipModel（Model）、 VipFragment（View）和 VipPresenter（Presenter），并将他们装配在了一起，这就是 Activity 的作用。
 
 ### 4.  总结
 
