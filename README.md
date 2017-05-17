@@ -284,7 +284,7 @@ class VipPresenter implements VipContract.Presenter, VipModel.VipModelListener {
 }
 ```
 
-Presenter 中主要是实现 View 和 Model 的交互，并且将两者隔离开来，实现了接口隔离。VipPresenter 实现 VipContract.Presenter 契约类接口，在构造里面接受 View 的对象，并且调用了View 的 setPresenter 方法，把自己的引用传了进去，这就是上面基类定义的方法，这样 Presenter 就有了 View 的引用  View 也有了Presenter 的引用。而实现 VipModel.VipModelListener 接口是为了响应 Model 网络请求完成后的回调。
+Presenter 中主要是实现 View 和 Model 的交互，并且将两者隔离开来，实现了接口隔离。VipPresenter 实现 VipContract.Presenter 契约类接口，在构造里面接受 View 的对象，并且调用了View 的 setPresenter 方法，把自己的引用传了进去，这就是上面基类定义的方法，这样 Presenter 就有了 View 的引用  View 也有了Presenter 的引用。而实现 VipModel.VipModelListener 接口是为了响应 Model 网络请求完成后的回调。而且，将业务逻辑放到 Presenter 中去，可以方便去驱动避免 Activity 退出而后台线程仍然引用着 Activity，致使资源无法被系统回收从而引起内存泄露。
 
 还可以看到上面实现了start 方法并调用了 doLoadMyInfo 和 doLoadVipInfo 方法，这两个方法其实是用来加载 View 初始化完成后所需要的数据的，在加载完成后讲数据交给 View 来使用。
 
