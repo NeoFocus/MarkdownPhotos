@@ -83,7 +83,7 @@ interface VipContract {
 
 **Model 实现**
 
-Model 的实现与具体业务相关，并不是必须有的，这里不列举出来。
+Model 的实现与具体业务相关，这里不列举出来。Model 并不是必须有的，Model 属于仓库层，如果可以很清晰地获取数据库内容和网络数据，则可以把 Model 的工作纳入到 Presenter 中。如果带有 Model，则 Presenter 要实现 Model 的回调，在回调中把数据传给 View 或响应。所以 Presenter 必须得有 View 的引用，但可以不必持有 Model。
 
 **具体的 View 和 Presenter 的实现：**
 
